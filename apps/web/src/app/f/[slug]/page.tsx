@@ -1,11 +1,118 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { fetchFormBySlug, submitFormResponse } from "@/lib/supabase-actions";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, CheckCircle2, Star, Upload, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { AnimatedBackground } from "@/components/builder/animated-background";
+import { useAuth } from "@/providers/auth-provider";
+
+// ============================================================================
+// Interactive Signature Pad
+// ============================================================================
+function SignaturePad({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#8B5CF6";
+  }, []);
+
+  const getCoordinates = (e: any) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    // Calculate the scale difference between actual size and CSS size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    return { 
+      x: (clientX - rect.left) * scaleX, 
+      y: (clientY - rect.top) * scaleY 
+    };
+  };
+
+  const startDrawing = (e: any) => {
+    e.preventDefault(); // Prevent scrolling on touch devices
+    const coords = getCoordinates(e);
+    if (!coords) return;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e: any) => {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const coords = getCoordinates(e);
+    if (!coords) return;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (canvasRef.current) {
+      onChange(canvasRef.current.toDataURL());
+    }
+  };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    onChange("");
+  };
+
+  return (
+    <div className="relative border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white group hover:border-[#8B5CF6] transition-colors">
+      <canvas
+        ref={canvasRef}
+        width={600}
+        height={200}
+        className="w-full h-32 cursor-crosshair touch-none"
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseOut={stopDrawing}
+        onTouchStart={startDrawing}
+        onTouchMove={draw}
+        onTouchEnd={stopDrawing}
+      />
+      {value ? (
+        <button 
+          type="button" 
+          onClick={clear}
+          className="absolute top-2 right-2 px-3 py-1 bg-gray-100 text-xs font-bold text-gray-600 rounded-lg hover:bg-red-100 hover:text-red-500 transition-colors shadow-sm"
+        >
+          Clear Signature
+        </button>
+      ) : (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-gray-300 font-comic group-hover:text-gray-400 transition-colors">
+          <span className="font-bold text-sm">✍️ Draw your signature here</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ============================================================================
 // Field renderer for all supported types
@@ -341,6 +448,24 @@ function FieldInput({
         </div>
       );
 
+    case "social_links":
+      return (
+        <div className="space-y-3">
+          <div className="flex gap-3 items-center">
+            <span className="w-8 flex justify-center text-xl">🐦</span>
+            <input type="url" placeholder="Twitter / X profile URL" onChange={(e) => onChange({ ...(value || {}), twitter: e.target.value })} className={baseInput} />
+          </div>
+          <div className="flex gap-3 items-center">
+            <span className="w-8 flex justify-center text-xl">💼</span>
+            <input type="url" placeholder="LinkedIn profile URL" onChange={(e) => onChange({ ...(value || {}), linkedin: e.target.value })} className={baseInput} />
+          </div>
+          <div className="flex gap-3 items-center">
+            <span className="w-8 flex justify-center text-xl">📸</span>
+            <input type="url" placeholder="Instagram profile URL" onChange={(e) => onChange({ ...(value || {}), instagram: e.target.value })} className={baseInput} />
+          </div>
+        </div>
+      );
+
     case "file_upload":
       return (
         <label className="block">
@@ -361,11 +486,7 @@ function FieldInput({
       );
 
     case "signature":
-      return (
-        <div className="h-32 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center text-gray-400 font-comic">
-          <span className="font-bold text-sm">✍️ Signature pad (draw here)</span>
-        </div>
-      );
+      return <SignaturePad value={value || ""} onChange={(val) => onChange(val)} />;
 
     case "matrix": {
       const rows: string[] = field.config?.rows || ["Row 1", "Row 2"];
@@ -438,6 +559,19 @@ export default function PublicFormView() {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  
+  const { user } = useAuth();
+  const [respondentEmail, setRespondentEmail] = useState<string>("");
+  const [respondentName, setRespondentName] = useState<string>("");
+  const [hasEnteredEmail, setHasEnteredEmail] = useState<boolean>(false);
+
+  // Auto-fill if user is logged in
+  useEffect(() => {
+    if (user) {
+      if (user.email && !respondentEmail) setRespondentEmail(user.email);
+      if (user.displayName && !respondentName) setRespondentName(user.displayName);
+    }
+  }, [user]);
 
   useEffect(() => {
     async function loadForm() {
@@ -466,7 +600,10 @@ export default function PublicFormView() {
     if (!formData) return;
     setSubmitting(true);
     try {
-      await submitFormResponse(formData.id, responses);
+      const payload = { ...responses };
+      if (respondentName) payload.__respondent_name = respondentName;
+      
+      await submitFormResponse(formData.id, payload, respondentEmail);
       setSuccess(true);
       if (typeof window !== "undefined") {
         localStorage.setItem(`form_submitted_${slug}`, "true");
@@ -538,11 +675,84 @@ export default function PublicFormView() {
   const roundedClass = theme.rounded || "rounded-2xl";
   const borderClass = theme.borderStyle || "border-2";
   const isGlass = theme.glassmorphism;
+
+  // Email Gate
+  if (!hasEnteredEmail && !success) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden ${theme.backgroundColor || "bg-[#FCFBF8]"}`}>
+        <AnimatedBackground pattern={theme.backgroundPattern || "solid"} />
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 max-w-md w-full bg-white/90 backdrop-blur-md p-8 rounded-2xl border-2 border-[#333333] shadow-[8px_8px_0px_#333333]"
+        >
+          <div className="w-16 h-16 bg-[#F5F3FF] border-2 border-[#8B5CF6] rounded-full flex items-center justify-center mb-6 mx-auto">
+            <span className="text-2xl">👋</span>
+          </div>
+          
+          <h2 className="text-2xl font-balsamiq font-bold text-center text-[#333333] mb-2">Welcome!</h2>
+          <p className="text-gray-500 font-comic text-center text-sm mb-8">
+            Before we begin, please provide your email address to continue to the form.
+          </p>
+
+          <form onSubmit={(e) => { 
+            e.preventDefault(); 
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(respondentEmail)) {
+              toast.error("Please enter a valid email address.");
+              return;
+            }
+            if (respondentEmail) setHasEnteredEmail(true); 
+          }}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold font-comic text-[#333333] mb-2">Full Name</label>
+                <input 
+                  type="text" 
+                  value={respondentName}
+                  onChange={(e) => setRespondentName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 outline-none focus:border-[#8B5CF6] font-comic transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold font-comic text-[#333333] mb-2">Email Address *</label>
+                <input 
+                  type="email" 
+                  required
+                  value={respondentEmail}
+                  onChange={(e) => setRespondentEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 outline-none focus:border-[#8B5CF6] font-comic transition-colors"
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                className="w-full py-3 bg-[#8B5CF6] text-white rounded-xl border-2 border-[#333333] font-balsamiq font-bold text-lg shadow-[4px_4px_0px_#333333] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#333333] transition-all"
+              >
+                Continue to Form
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
+
   const pattern = theme.backgroundPattern;
 
   // Background styling mapping
   const bgStyles: any = {};
-  if (pattern === "aurora") {
+  if (["programmer", "healthcare", "education", "playful"].includes(pattern || "")) {
+    // These themes are handled by AnimatedBackground but we need a base color
+    if (pattern === "programmer") bgStyles.backgroundColor = "#0f172a";
+    if (pattern === "healthcare") bgStyles.backgroundColor = "#f0f9ff";
+    if (pattern === "education") bgStyles.backgroundColor = "#fff7ed";
+    if (pattern === "playful") bgStyles.backgroundColor = "#fdf4ff";
+  } else if (pattern === "aurora") {
     bgStyles.background = "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)";
     bgStyles.backgroundAttachment = "fixed";
   } else if (pattern === "zen") {
@@ -570,10 +780,12 @@ export default function PublicFormView() {
 
   return (
     <div
-      className={`min-h-screen py-16 px-4 transition-colors ${fontClass}`}
+      className={`min-h-screen py-16 px-4 transition-colors ${fontClass} relative`}
       style={bgStyles}
     >
-      <div className="max-w-2xl mx-auto">
+      <AnimatedBackground pattern={pattern || "solid"} />
+      
+      <div className="max-w-2xl mx-auto relative z-10">
         <AnimatePresence mode="wait">
           {!success ? (
             <motion.div

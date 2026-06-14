@@ -60,6 +60,7 @@ interface FormBuilderState {
   isDirty: boolean;
 
   // Actions
+  resetStore: () => void;
   setFormMeta: (meta: Partial<Pick<FormBuilderState, "formId" | "title" | "description" | "layoutType" | "themeConfig" | "status" | "formSlug" | "formSettings" | "isDirty">>) => void;
   setFields: (fields: BuilderField[]) => void;
   addField: (type: FieldType, atIndex?: number) => void;
@@ -148,6 +149,38 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
   historyIndex: 0,
   previewMode: false,
   isDirty: false,
+
+  resetStore: () => set({
+    formId: null,
+    formSlug: null,
+    title: "Untitled Form",
+    description: "",
+    layoutType: "single_page",
+    status: "Draft",
+    themeConfig: {
+      fontFamily: "font-sans",
+      backgroundColor: "bg-white",
+      accentColor: "border-[#8B5CF6]",
+      borderStyle: "border-2",
+      rounded: "rounded-2xl",
+      formBgColor: "#FCFBF8",
+      fieldBgColor: "#ffffff",
+      textColor: "#333333",
+      glassmorphism: false,
+      backgroundPattern: "solid"
+    },
+    formSettings: {
+      successMessage: "Thank You! 🎉 Your response has been successfully recorded.",
+      allowMultipleResponses: true,
+      isAcceptingResponses: true,
+    },
+    fields: [],
+    activeFieldId: null,
+    history: [[]],
+    historyIndex: 0,
+    previewMode: false,
+    isDirty: false,
+  }),
 
   setFormMeta: (meta) => set((state) => ({ ...state, isDirty: true, ...meta })),
 

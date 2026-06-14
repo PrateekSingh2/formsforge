@@ -134,55 +134,52 @@ export function FieldConfig() {
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-3">Quick Themes</label>
               <div className="grid grid-cols-2 gap-3">
-                {/* Aurora */}
+                {/* Programmer */}
                 <button
-                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-balsamiq", backgroundColor: "bg-transparent", accentColor: "border-[#8B5CF6]", borderStyle: "border-2", rounded: "rounded-3xl", formBgColor: "#000000", fieldBgColor: "rgba(255, 255, 255, 0.1)", textColor: "#ffffff", glassmorphism: true, backgroundPattern: "aurora" } })}
-                  className="p-3 border-2 border-transparent rounded-xl text-left relative overflow-hidden group transition-all shadow-sm hover:scale-105"
-                  style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)" }}
+                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-mono", backgroundColor: "bg-transparent", accentColor: "border-emerald-500", borderStyle: "border border-emerald-500/50", rounded: "rounded-sm", formBgColor: "#0f172a", fieldBgColor: "rgba(15, 23, 42, 0.8)", textColor: "#10b981", glassmorphism: true, backgroundPattern: "programmer" } })}
+                  className="p-3 border border-emerald-500/30 rounded-sm text-left relative overflow-hidden group transition-all bg-[#0f172a] hover:border-emerald-500"
                 >
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"></div>
                   <div className="relative z-10 flex gap-1 mb-2">
-                    <div className="w-4 h-4 rounded-full bg-[#8B5CF6] border border-white/20"></div>
-                    <div className="w-4 h-4 rounded-full bg-white/20 border border-white/20 backdrop-blur-md"></div>
+                    <div className="w-4 h-4 rounded-sm bg-emerald-500 border border-emerald-400/50"></div>
+                    <div className="w-4 h-4 rounded-sm bg-[#1e293b] border border-emerald-500/30"></div>
                   </div>
-                  <span className="relative z-10 font-balsamiq font-bold text-xs text-white">Aurora</span>
+                  <span className="relative z-10 font-mono text-xs text-emerald-500">&lt;Programmer/&gt;</span>
                 </button>
 
-                {/* Neo-Brutalism */}
+                {/* Healthcare */}
                 <button
-                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-sans", backgroundColor: "bg-white", accentColor: "border-black", borderStyle: "border-4", rounded: "rounded-none", formBgColor: "#fef08a", fieldBgColor: "#ffffff", textColor: "#000000", glassmorphism: false, backgroundPattern: "neo-grid" } })}
-                  className="p-3 border-4 border-black rounded-none text-left bg-[#fef08a] hover:translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#000000] transition-all"
+                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-sans", backgroundColor: "bg-blue-50", accentColor: "border-red-500", borderStyle: "border-2", rounded: "rounded-2xl", formBgColor: "#f0f9ff", fieldBgColor: "rgba(255, 255, 255, 0.9)", textColor: "#0f172a", glassmorphism: true, backgroundPattern: "healthcare" } })}
+                  className="p-3 border-2 border-red-200 rounded-2xl text-left bg-blue-50 hover:border-red-500 transition-all"
                 >
                   <div className="flex gap-1 mb-2">
-                    <div className="w-4 h-4 rounded-none bg-black"></div>
-                    <div className="w-4 h-4 rounded-none bg-white border-2 border-black"></div>
+                    <div className="w-4 h-4 rounded-full bg-red-500"></div>
+                    <div className="w-4 h-4 rounded-full bg-white border border-red-200"></div>
                   </div>
-                  <span className="font-sans font-black tracking-tighter text-xs text-black uppercase">Brutalism</span>
+                  <span className="font-sans font-bold text-xs text-slate-800">Healthcare</span>
                 </button>
 
-                {/* Zen Garden */}
+                {/* Education */}
                 <button
-                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-comic", backgroundColor: "bg-[#ecfccb]", accentColor: "border-[#65a30d]", borderStyle: "border-2", rounded: "rounded-[2rem]", formBgColor: "#f7fee7", fieldBgColor: "rgba(255,255,255,0.7)", textColor: "#3f6212", glassmorphism: true, backgroundPattern: "zen" } })}
-                  className="p-3 border-2 border-transparent rounded-3xl text-left transition-all hover:scale-105"
-                  style={{ background: "linear-gradient(120deg, #ecfccb 0%, #d9f99d 100%)" }}
+                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-comic", backgroundColor: "bg-orange-50", accentColor: "border-orange-500", borderStyle: "border-4", rounded: "rounded-xl", formBgColor: "#fff7ed", fieldBgColor: "rgba(255,255,255,0.95)", textColor: "#9a3412", glassmorphism: true, backgroundPattern: "education" } })}
+                  className="p-3 border-4 border-orange-200 rounded-xl text-left transition-all hover:border-orange-500 bg-orange-50"
                 >
                   <div className="flex gap-1 mb-2">
-                    <div className="w-4 h-4 rounded-full bg-[#65a30d]"></div>
-                    <div className="w-4 h-4 rounded-full bg-white/60"></div>
+                    <div className="w-4 h-4 rounded-md bg-orange-500"></div>
+                    <div className="w-4 h-4 rounded-md bg-white border-2 border-orange-200"></div>
                   </div>
-                  <span className="font-comic font-bold text-xs text-[#3f6212]">Zen Garden</span>
+                  <span className="font-comic font-bold text-xs text-orange-800">Education</span>
                 </button>
 
-                {/* Cyberpunk */}
+                {/* Playful */}
                 <button
-                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-mono", backgroundColor: "bg-black", accentColor: "border-[#06b6d4]", borderStyle: "border border-[#06b6d4] shadow-[0_0_10px_#06b6d4]", rounded: "rounded-md", formBgColor: "#000000", fieldBgColor: "rgba(0,0,0,0.8)", textColor: "#22d3ee", glassmorphism: false, backgroundPattern: "cybergrid" } })}
-                  className="p-3 border border-[#06b6d4] rounded-md text-left bg-black shadow-[0_0_8px_#06b6d4] hover:shadow-[0_0_15px_#06b6d4] transition-all"
+                  onClick={() => setFormMeta({ themeConfig: { fontFamily: "font-balsamiq", backgroundColor: "bg-[#fdf4ff]", accentColor: "border-[#d946ef]", borderStyle: "border-2 border-dashed", rounded: "rounded-full", formBgColor: "#fdf4ff", fieldBgColor: "rgba(255,255,255,0.6)", textColor: "#701a75", glassmorphism: true, backgroundPattern: "playful" } })}
+                  className="p-3 border-2 border-dashed border-[#d946ef] rounded-3xl text-left bg-[#fdf4ff] hover:bg-[#fae8ff] transition-all"
                 >
                   <div className="flex gap-1 mb-2">
-                    <div className="w-4 h-4 rounded-sm bg-[#06b6d4]"></div>
-                    <div className="w-4 h-4 rounded-sm bg-black border border-[#06b6d4]"></div>
+                    <div className="w-4 h-4 rounded-full bg-[#d946ef]"></div>
+                    <div className="w-4 h-4 rounded-full bg-white border border-[#d946ef]"></div>
                   </div>
-                  <span className="font-mono text-xs text-[#22d3ee] tracking-widest">Cyber</span>
+                  <span className="font-balsamiq text-xs text-[#701a75] font-bold">Playful</span>
                 </button>
               </div>
             </div>

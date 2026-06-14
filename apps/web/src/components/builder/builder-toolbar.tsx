@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useFormBuilderStore } from "@/stores/form-builder-store";
@@ -21,9 +21,14 @@ export function BuilderToolbar() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handlePublish = async () => {
-    setIsPublishing(true);
+  const handlePublish = async (isAutoSave = false) => {
+    // Prevent multiple parallel saves
+    if (isPublishing) return;
+    setIsPublishing(!isAutoSave); // Only show spinner if manual save
+    
     try {
       const result = await saveFormToDatabase(
         user?.uid || null,
@@ -37,14 +42,37 @@ export function BuilderToolbar() {
       );
       
       setFormMeta({ status: "Published", isDirty: false, formSlug: result.slug, formId: result.formId });
-      toast.success("Form successfully published!");
+      setLastSaved(new Date());
+      if (!isAutoSave) {
+        toast.success("Form successfully published!");
+      }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to publish form. Please try again.");
+      if (!isAutoSave) {
+        toast.error("Failed to publish form. Please try again.");
+      }
     } finally {
       setIsPublishing(false);
     }
   };
+
+  // Autosave mechanism
+  useEffect(() => {
+    if (isDirty && user?.uid) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      
+      // Auto-save after 3 seconds of inactivity
+      autoSaveTimerRef.current = setTimeout(() => {
+        handlePublish(true);
+      }, 3000);
+    }
+    
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [isDirty, fields, title, themeConfig, user]);
 
   return (
     <div className="h-16 border-b-2 border-[#333333] bg-white px-6 flex items-center justify-between shrink-0 shadow-[0_4px_0px_#333333] relative z-20">
@@ -74,6 +102,15 @@ export function BuilderToolbar() {
       </div>
 
       <div className="flex items-center gap-3">
+        <div className="flex flex-col items-end mr-2">
+          {lastSaved && !isDirty && (
+            <span className="text-[10px] font-comic text-gray-400">Saved {lastSaved.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          )}
+          {isDirty && (
+             <span className="text-[10px] font-comic text-[#F59E0B] flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Unsaved changes</span>
+          )}
+        </div>
+
         <motion.button 
           whileTap={{ scale: 0.95 }} 
           onClick={() => setIsAIModalOpen(true)}
@@ -102,12 +139,13 @@ export function BuilderToolbar() {
           </motion.button>
         )}
 
+
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-          onClick={handlePublish}
+          onClick={() => handlePublish(false)}
           disabled={isPublishing}
           className={`flex items-center gap-2 px-5 py-2 text-sm font-balsamiq font-bold rounded-xl border-2 border-[#333333] transition-all disabled:opacity-70 ${status === 'Published' && !isDirty ? 'bg-[#34D399] text-[#333333] shadow-[2px_2px_0px_#333333]' : 'bg-[#F59E0B] text-[#333333] shadow-[4px_4px_0px_#333333] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#333333]'}`}>
-          {isPublishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {isPublishing ? "Saving..." : status === 'Published' && !isDirty ? "Published" : isDirty ? "Save & Publish" : "Publish"}
+          {isPublishing && !autoSaveTimerRef.current ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {status === 'Published' && !isDirty ? "Published" : isDirty ? "Save & Publish" : "Publish"}
         </motion.button>
       </div>
 

@@ -42,6 +42,7 @@ export default function BuilderPage() {
         // Load template
         const template = FORM_TEMPLATES.find(t => t.id === templateId);
         if (template) {
+          useFormBuilderStore.getState().resetStore();
           loadForm(
             "", // New form
             template.title,

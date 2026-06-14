@@ -20,8 +20,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = [
     { name: "My Forms", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Templates", href: "/dashboard/templates", icon: Star },
     { name: "Audiences", href: "/dashboard/audiences", icon: Users },
-    { name: "Integrations", href: "/dashboard/integrations", icon: Webhook },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
 
