@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
+  userRole: string | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -20,13 +21,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Utility to sync user to Supabase
-async function syncUserToSupabase(user: { uid: string; email: string; displayName: string | null }) {
+// Utility to sync user to Supabase and return their role
+async function syncUserToSupabase(user: { uid: string; email: string; displayName: string | null }): Promise<string> {
   try {
     // First, check if the user already exists
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id')
+      .select('id, role')
       .eq('firebase_uid', user.uid)
       .single();
 
@@ -42,14 +43,19 @@ async function syncUserToSupabase(user: { uid: string; email: string; displayNam
       if (error && error.code !== '23505') {
         console.error("Failed to sync user to Supabase. Full error:", JSON.stringify(error));
       }
+      return 'user';
     }
+    
+    return existingUser.role || 'user';
   } catch (err) {
     console.error("Supabase sync exception:", err);
+    return 'user';
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,14 +65,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
-          await syncUserToSupabase({ uid: firebaseUser.uid, email: firebaseUser.email || '', displayName: firebaseUser.displayName });
+          const role = await syncUserToSupabase({ uid: firebaseUser.uid, email: firebaseUser.email || '', displayName: firebaseUser.displayName });
+          setUserRole(role);
           setUser(firebaseUser);
         } else {
           // If Firebase says no user, check if we have a mock fallback session
           const savedMockUser = localStorage.getItem("mock_formforge_session");
+          const savedMockRole = localStorage.getItem("mock_formforge_role") || "user";
           if (savedMockUser) {
+            setUserRole(savedMockRole);
             setUser(JSON.parse(savedMockUser));
           } else {
+            setUserRole(null);
             setUser(null);
           }
         }
@@ -74,8 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     } else {
       const savedMockUser = localStorage.getItem("mock_formforge_session");
+      const savedMockRole = localStorage.getItem("mock_formforge_role") || "user";
       if (savedMockUser) {
+        setUserRole(savedMockRole);
         setUser(JSON.parse(savedMockUser));
+      } else {
+        setUserRole(null);
       }
       setLoading(false);
     }
@@ -90,13 +104,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) throw new Error("No Firebase Config");
       const result = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(result.user, { displayName: name });
-      await syncUserToSupabase({ uid: result.user.uid, email, displayName: name });
+      const role = await syncUserToSupabase({ uid: result.user.uid, email, displayName: name });
+      setUserRole(role);
     } catch (error) {
       console.warn("Firebase Auth failed, falling back to mock session:", error);
       await simulateNetworkRequest();
       const mockUser = { uid: "mock-user-" + Date.now(), email, displayName: name };
       localStorage.setItem("mock_formforge_session", JSON.stringify(mockUser));
-      await syncUserToSupabase({ uid: mockUser.uid, email: mockUser.email, displayName: mockUser.displayName });
+      localStorage.setItem("mock_formforge_role", "user");
+      const role = await syncUserToSupabase({ uid: mockUser.uid, email: mockUser.email, displayName: mockUser.displayName });
+      setUserRole(role);
       setUser(mockUser as unknown as User);
     }
   };
@@ -105,7 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) throw new Error("No Firebase Config");
       const result = await signInWithEmailAndPassword(auth, email, password);
-      await syncUserToSupabase({ uid: result.user.uid, email: result.user.email || email, displayName: result.user.displayName });
+      const role = await syncUserToSupabase({ uid: result.user.uid, email: result.user.email || email, displayName: result.user.displayName });
+      setUserRole(role);
     } catch (error) {
       console.warn("Firebase Auth failed, falling back to mock session:", error);
       await simulateNetworkRequest();
@@ -114,7 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const mockUser = { uid: "mock-user-123", email, displayName: email.split("@")[0] };
       localStorage.setItem("mock_formforge_session", JSON.stringify(mockUser));
-      await syncUserToSupabase({ uid: mockUser.uid, email: mockUser.email, displayName: mockUser.displayName });
+      const role = await syncUserToSupabase({ uid: mockUser.uid, email: mockUser.email, displayName: mockUser.displayName });
+      localStorage.setItem("mock_formforge_role", role);
+      setUserRole(role);
       setUser(mockUser as unknown as User);
     }
   };
@@ -123,13 +143,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) throw new Error("No Firebase Config");
       const result = await signInWithPopup(auth, googleProvider);
-      await syncUserToSupabase({ uid: result.user.uid, email: result.user.email || '', displayName: result.user.displayName });
+      const role = await syncUserToSupabase({ uid: result.user.uid, email: result.user.email || '', displayName: result.user.displayName });
+      setUserRole(role);
     } catch (error) {
       console.warn("Firebase Google Auth failed, falling back to mock session:", error);
       await simulateNetworkRequest();
       const mockUser = { uid: "mock-google-" + Date.now(), email: `google_${Date.now()}@example.com`, displayName: "Google User" };
       localStorage.setItem("mock_formforge_session", JSON.stringify(mockUser));
-      await syncUserToSupabase({ uid: mockUser.uid, email: mockUser.email, displayName: mockUser.displayName });
+      const role = await syncUserToSupabase({ uid: mockUser.uid, email: mockUser.email, displayName: mockUser.displayName });
+      localStorage.setItem("mock_formforge_role", role);
+      setUserRole(role);
       setUser(mockUser as unknown as User);
     }
   };
@@ -143,12 +166,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error(error);
     } finally {
       localStorage.removeItem("mock_formforge_session");
+      localStorage.removeItem("mock_formforge_role");
+      setUserRole(null);
       setUser(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, userRole, loading, signUp, signIn, signInWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

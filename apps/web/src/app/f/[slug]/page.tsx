@@ -544,6 +544,40 @@ function linkify(text: string) {
 }
 
 // ============================================================================
+// Page Flip Animation Variants
+// ============================================================================
+const getPageVariants = (isMobile: boolean) => ({
+  enter: (direction: number) => ({
+    rotateX: isMobile ? (direction > 0 ? 90 : -90) : 0,
+    rotateY: !isMobile ? (direction > 0 ? 90 : -90) : 0,
+    opacity: 0,
+    transformPerspective: 2000,
+    transformOrigin: isMobile ? "top center" : "left center",
+  }),
+  center: {
+    rotateX: 0,
+    rotateY: 0,
+    opacity: 1,
+    transformOrigin: isMobile ? "top center" : "left center",
+    transition: {
+      duration: 0.6,
+      type: "spring" as const,
+      bounce: 0.2,
+    }
+  },
+  exit: (direction: number) => ({
+    rotateX: isMobile ? (direction < 0 ? 90 : -90) : 0,
+    rotateY: !isMobile ? (direction < 0 ? 90 : -90) : 0,
+    opacity: 0,
+    transformPerspective: 2000,
+    transformOrigin: isMobile ? "top center" : "left center",
+    transition: {
+      duration: 0.4
+    }
+  })
+});
+
+// ============================================================================
 // Main Published Form View
 // ============================================================================
 export default function PublicFormView() {
@@ -560,6 +594,18 @@ export default function PublicFormView() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   
+  // Notebook Pagination State
+  const [currentFieldIndex, setCurrentFieldIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const { user } = useAuth();
   const [respondentEmail, setRespondentEmail] = useState<string>("");
   const [respondentName, setRespondentName] = useState<string>("");
@@ -595,8 +641,8 @@ export default function PublicFormView() {
     loadForm();
   }, [slug]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!formData) return;
     setSubmitting(true);
     try {
@@ -613,6 +659,33 @@ export default function PublicFormView() {
       toast.error("Failed to submit response.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const nextField = () => {
+    const currentField = fields[currentFieldIndex];
+    
+    // Validate required fields before moving to next page
+    if (currentField && currentField.required) {
+      const val = responses[currentField.id];
+      if (!val || (Array.isArray(val) && val.length === 0)) {
+        toast.error(`"${currentField.label}" is required.`);
+        return;
+      }
+    }
+
+    if (currentFieldIndex < fields.length - 1) {
+      setDirection(1);
+      setCurrentFieldIndex((prev) => prev + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const prevField = () => {
+    if (currentFieldIndex > 0) {
+      setDirection(-1);
+      setCurrentFieldIndex((prev) => prev - 1);
     }
   };
 
@@ -685,14 +758,18 @@ export default function PublicFormView() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative z-10 max-w-md w-full bg-white/90 backdrop-blur-md p-8 rounded-2xl border-2 border-[#333333] shadow-[8px_8px_0px_#333333]"
+          className="relative z-10 max-w-md w-full bg-white p-8 md:p-10 rounded-[2rem] border-4 border-[#333333] shadow-[8px_8px_0px_#333333] overflow-hidden"
         >
-          <div className="w-16 h-16 bg-[#F5F3FF] border-2 border-[#8B5CF6] rounded-full flex items-center justify-center mb-6 mx-auto">
-            <span className="text-2xl">👋</span>
+          {/* Decorative Elements */}
+          <div className="absolute -top-6 -left-6 w-16 h-16 bg-[#34D399] rounded-full border-4 border-[#333333] opacity-50"></div>
+          <div className="absolute -bottom-8 -right-8 w-24 h-24 bg-[#FCD34D] rounded-full border-4 border-[#333333] opacity-50"></div>
+
+          <div className="w-20 h-20 bg-[#E9D5FF] border-4 border-[#333333] shadow-[4px_4px_0px_#333333] transform -rotate-6 rounded-2xl flex items-center justify-center mb-6 mx-auto relative z-10">
+            <span className="text-3xl">👋</span>
           </div>
           
-          <h2 className="text-2xl font-balsamiq font-bold text-center text-[#333333] mb-2">Welcome!</h2>
-          <p className="text-gray-500 font-comic text-center text-sm mb-8">
+          <h2 className="text-3xl font-balsamiq font-bold text-center text-[#333333] mb-3 relative z-10">Welcome!</h2>
+          <p className="text-gray-500 font-comic text-center text-md mb-8 relative z-10 font-bold">
             Before we begin, please provide your email address to continue to the form.
           </p>
 
@@ -713,7 +790,7 @@ export default function PublicFormView() {
                   value={respondentName}
                   onChange={(e) => setRespondentName(e.target.value)}
                   placeholder="John Doe"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 outline-none focus:border-[#8B5CF6] font-comic transition-colors"
+                  className="w-full px-5 py-4 rounded-xl border-4 border-[#333333] outline-none focus:border-[#8B5CF6] focus:shadow-[4px_4px_0px_#333333] font-comic font-bold transition-all shadow-sm"
                 />
               </div>
 
@@ -725,13 +802,13 @@ export default function PublicFormView() {
                   value={respondentEmail}
                   onChange={(e) => setRespondentEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 outline-none focus:border-[#8B5CF6] font-comic transition-colors"
+                  className="w-full px-5 py-4 rounded-xl border-4 border-[#333333] outline-none focus:border-[#8B5CF6] focus:shadow-[4px_4px_0px_#333333] font-comic font-bold transition-all shadow-sm"
                 />
               </div>
               
               <button 
                 type="submit"
-                className="w-full py-3 bg-[#8B5CF6] text-white rounded-xl border-2 border-[#333333] font-balsamiq font-bold text-lg shadow-[4px_4px_0px_#333333] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#333333] transition-all"
+                className="w-full py-4 mt-2 bg-[#8B5CF6] text-white rounded-xl border-4 border-[#333333] font-balsamiq font-bold text-xl shadow-[6px_6px_0px_#333333] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_#333333] active:translate-y-[6px] active:shadow-none transition-all"
               >
                 Continue to Form
               </button>
@@ -786,121 +863,113 @@ export default function PublicFormView() {
       <AnimatedBackground pattern={pattern || "solid"} />
       
       <div className="max-w-2xl mx-auto relative z-10">
-        <AnimatePresence mode="wait">
-          {!success ? (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              {/* Header */}
-              <div className="mb-10 text-center">
-                <h1
-                  className="text-4xl font-bold mb-3 font-balsamiq"
-                  style={{ color: textColor }}
-                >
-                  {formData.title || "Untitled Form"}
-                </h1>
-                {formData.description && (
-                  <div 
-                    className="text-base opacity-70 whitespace-pre-line" 
-                    style={{ color: textColor }}
-                    dangerouslySetInnerHTML={{ __html: linkify(formData.description) }}
-                  />
-                )}
+        {!success && fields.length > 0 ? (
+          <div
+            className={`bg-[#FCFBF8] p-6 md:p-12 rounded-[2rem] border-4 border-[#333333] shadow-[8px_8px_0px_#333333] relative overflow-hidden transition-all duration-500 w-full`}
+          >
+            {/* Spiral Binding Edge (Top on mobile, Left on desktop) */}
+            <div className="absolute top-0 left-0 w-full h-12 md:h-full md:w-16 border-b-4 md:border-b-0 md:border-r-4 border-[#333333] bg-[#E5E7EB] shadow-[inset_0_-4px_8px_rgba(0,0,0,0.05)] md:shadow-[inset_-4px_0_8px_rgba(0,0,0,0.05)] flex flex-row md:flex-col justify-evenly px-4 md:px-0 py-0 md:py-8 z-20">
+              {[...Array(isMobile ? 8 : 12)].map((_, i) => (
+                <div key={i} className="w-4 h-8 md:w-10 md:h-5 bg-white border-4 border-[#333333] rounded-full shadow-[2px_2px_0px_#333333] -mt-3 md:mt-0 md:ml-3 relative z-30 transform md:-rotate-12" />
+              ))}
+            </div>
+
+            {/* Red Margin Line on the Paper (Hidden on mobile or just left) */}
+            <div className="hidden md:block absolute top-0 left-24 w-1 h-full bg-red-400 opacity-40 z-10"></div>
+            <div className="hidden md:block absolute top-0 left-26 w-[2px] h-full bg-red-400 opacity-20 z-10"></div>
+            <div className="block md:hidden absolute top-0 left-6 w-1 h-full bg-red-400 opacity-40 z-10"></div>
+            <div className="block md:hidden absolute top-0 left-8 w-[2px] h-full bg-red-400 opacity-20 z-10"></div>
+
+            {/* Notebook Header */}
+            <div className="mb-6 md:mb-8 pt-10 md:pt-0 pl-10 md:pl-16 flex justify-between items-center relative z-10">
+                  <span className="text-sm font-bold font-comic text-[#333333] bg-white px-3 md:px-4 py-1 md:py-1.5 border-2 border-[#333333] rounded-full shadow-[2px_2px_0px_#333333]">
+                    {formData.title || "Untitled Form"}
+                  </span>
+                  <span className="text-sm font-bold font-comic text-[#333333] bg-[#E9D5FF] px-3 md:px-4 py-1 md:py-1.5 border-2 border-[#333333] rounded-full shadow-[2px_2px_0px_#333333]">
+                    {currentFieldIndex + 1} / {fields.length}
+                  </span>
+                </div>
+
+              {/* Field Container */}
+              <div className="pl-6 md:pl-16 relative z-10">
+                <AnimatePresence mode="wait" custom={direction}>
+                  <motion.div
+                    key={currentFieldIndex}
+                    custom={direction}
+                    variants={getPageVariants(isMobile)}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    className="w-full bg-[#FCFBF8] bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')] border-2 border-dashed border-gray-300 rounded-2xl p-6 md:p-8 min-h-[350px] shadow-sm flex flex-col justify-between"
+                  >
+                    <form onSubmit={(e) => { e.preventDefault(); nextField(); }} className="flex-1 flex flex-col justify-center">
+                      <div className="w-full">
+                        {(() => {
+                          const field = fields[currentFieldIndex];
+                          if (!field) return null;
+                          
+                          if (field.type === "statement") {
+                            return (
+                              <div className="mb-8">
+                                <h2 className="text-3xl font-bold font-balsamiq text-[#333333] mb-4 leading-tight">{field.label}</h2>
+                                {field.description && (
+                                  <p className="text-xl opacity-80 text-[#333333] font-comic leading-relaxed">{field.description}</p>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="mb-8">
+                              <label className="block text-3xl font-bold mb-4 font-balsamiq text-[#333333] leading-tight">
+                                {field.label}
+                                {field.required && <span className="text-red-500 ml-2">*</span>}
+                              </label>
+                              {field.description && (
+                                <p className="text-lg mb-6 opacity-70 text-[#333333] font-comic">{field.description}</p>
+                              )}
+                              <div className="bg-white/50 p-4 rounded-2xl border-2 border-[#333333] shadow-[4px_4px_0px_#333333] focus-within:shadow-[6px_6px_0px_#333333] focus-within:-translate-y-0.5 transition-all">
+                                <FieldInput
+                                  field={field}
+                                  value={responses[field.id]}
+                                  onChange={(val) => setResponses((prev) => ({ ...prev, [field.id]: val }))}
+                                  textColor="#333333"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      <div className="mt-8 flex items-center justify-between gap-4 pt-6 border-t-2 border-dashed border-gray-300">
+                        <button
+                          type="button"
+                          onClick={prevField}
+                          disabled={currentFieldIndex === 0}
+                          className={`px-4 py-2 font-balsamiq font-bold text-base rounded-xl border-2 transition-all flex items-center gap-2 ${
+                            currentFieldIndex === 0 
+                              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed" 
+                              : "bg-white text-[#333333] border-[#333333] shadow-[4px_4px_0px_#333333] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#333333] active:translate-y-[4px] active:shadow-none"
+                          }`}
+                        >
+                          Back
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={nextField}
+                          disabled={submitting}
+                          className="flex-1 max-w-[160px] py-3 bg-[#8B5CF6] border-4 border-[#333333] rounded-xl font-balsamiq text-lg font-bold text-white shadow-[4px_4px_0px_#333333] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#333333] active:translate-y-[4px] active:shadow-none transition-all flex justify-center items-center gap-2"
+                        >
+                          {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : currentFieldIndex === fields.length - 1 ? "Submit ✨" : "Next ➔"}
+                        </button>
+                      </div>
+                    </form>
+                  </motion.div>
+                </AnimatePresence>
               </div>
-
-              {/* Fields */}
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {fields.map((field, index) => {
-                  const isFocused = focusedField === field.id;
-                  const isDimmed = focusedField !== null && focusedField !== field.id;
-
-                  // Statement is a display-only block
-                  if (field.type === "statement") {
-                    return (
-                      <motion.div
-                        key={field.id}
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: "-50px" }}
-                        transition={{ duration: 0.5 }}
-                        className={`p-8 ${roundedClass} ${borderClass} transition-all duration-500 ${isDimmed ? "opacity-40" : ""} ${isGlass ? "backdrop-blur-xl border-white/20" : "border-gray-200"}`}
-                        style={{ backgroundColor: isGlass ? fieldBg.replace('rgb', 'rgba').replace(')', ', 0.6)').replace('a(a(', 'a(') : fieldBg }}
-                      >
-                        <h2 className="text-2xl font-bold font-balsamiq" style={{ color: textColor }}>
-                          {field.label}
-                        </h2>
-                        {field.description && (
-                          <p className="mt-2 opacity-80 text-base" style={{ color: textColor }}>
-                            {field.description}
-                          </p>
-                        )}
-                      </motion.div>
-                    );
-                  }
-
-                  return (
-                    <motion.div
-                      key={field.id}
-                      initial={{ opacity: 0, y: 40 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: "-50px" }}
-                      transition={{ duration: 0.4 }}
-                      onFocus={() => setFocusedField(field.id)}
-                      onBlur={(e) => {
-                        // Only remove focus if the new focus target is outside this field
-                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                          setFocusedField(null);
-                        }
-                      }}
-                      tabIndex={-1}
-                      className={`p-8 ${roundedClass} ${borderClass} transition-all duration-500 relative ${
-                        isFocused ? "scale-[1.02] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] z-10" : 
-                        isDimmed ? "opacity-40 scale-[0.98] z-0" : "shadow-sm z-0"
-                      } ${isGlass ? "backdrop-blur-xl border-white/20" : "border-gray-200"}`}
-                      style={{ 
-                        backgroundColor: isGlass ? fieldBg.replace('rgb', 'rgba').replace(')', ', 0.6)').replace('a(a(', 'a(') : fieldBg,
-                        borderColor: isFocused ? accentHex : undefined
-                      }}
-                    >
-                      <label
-                        className={`block text-xl font-bold mb-2 font-balsamiq transition-colors`}
-                        style={{ color: isFocused ? accentHex : textColor }}
-                      >
-                        {field.label}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
-                      </label>
-                      {field.description && (
-                        <p className="text-sm mb-3 opacity-60" style={{ color: textColor }}>
-                          {field.description}
-                        </p>
-                      )}
-                      <FieldInput
-                        field={field}
-                        value={responses[field.id]}
-                        onChange={(val) =>
-                          setResponses((prev) => ({ ...prev, [field.id]: val }))
-                        }
-                        textColor={textColor}
-                      />
-                    </motion.div>
-                  );
-                })}
-
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-4 mt-4 bg-[#8B5CF6] border-2 border-[#333333] rounded-2xl font-balsamiq text-lg font-bold text-white shadow-[4px_4px_0px_#333333] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#333333] active:translate-y-[4px] active:shadow-none transition-all flex justify-center items-center gap-2"
-                >
-                  {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "Submit Form ✨"}
-                </motion.button>
-              </form>
-            </motion.div>
-          ) : (
+            </div>
+          ) : success ? (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -917,6 +986,8 @@ export default function PublicFormView() {
                   onClick={() => {
                     setSuccess(false);
                     setResponses({});
+                    setCurrentFieldIndex(0);
+                    setDirection(0);
                   }}
                   className="text-[#8B5CF6] font-bold hover:underline font-comic"
                 >
@@ -924,13 +995,12 @@ export default function PublicFormView() {
                 </button>
               )}
             </motion.div>
-          )}
-        </AnimatePresence>
+          ) : null}
 
         <div className="mt-12 text-center">
-          <p className="text-sm text-gray-400 font-comic">
-            Powered by <span className="font-balsamiq text-[#8B5CF6]">FormForge</span>
-          </p>
+          <a href="/" className="text-sm text-gray-400 font-comic hover:text-gray-600 transition-colors inline-block cursor-pointer">
+            Powered by <span className="font-balsamiq text-[#8B5CF6] hover:underline">FormForge</span>
+          </a>
         </div>
       </div>
     </div>

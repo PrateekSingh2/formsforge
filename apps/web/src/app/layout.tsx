@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { TRPCReactProvider } from "@/providers/trpc-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+import { MobileBlocker } from "@/components/mobile-blocker";
 import "../globals.css";
 
 export const metadata: Metadata = {
@@ -40,6 +41,7 @@ export default function RootLayout({
       <body className="antialiased font-comic text-[#333333] bg-[#FCFBF8] overflow-x-hidden">
         <TRPCReactProvider>
           <AuthProvider>
+            <MobileBlocker />
             {children}
             <Toaster
               position="bottom-right"

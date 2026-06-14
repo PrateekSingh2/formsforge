@@ -7,7 +7,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, redirect } from "next/navigation";
+import { useAuth } from "@/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
   ChevronRight,
   LogOut,
   Shield,
+  Loader2,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -39,6 +41,20 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { user, userRole, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-violet-light animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user || userRole !== 'admin') {
+    redirect("/dashboard");
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-dark-bg text-dark-text flex">
